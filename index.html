@@ -110,7 +110,16 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Barlow',sans-serif
 .win-desc{color:rgba(255,255,255,.85);font-size:13px;line-height:1.55;max-width:320px;text-align:center;margin:4px 0 14px;font-weight:500}
 .coupon-wrap{border:2px solid #F5A623;border-radius:12px;padding:18px 32px;text-align:center;margin-bottom:18px;background:rgba(245,166,35,.08);min-width:240px}
 .coupon-label{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:#F5A623;text-transform:uppercase;margin-bottom:6px}
-.coupon-code{font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:900;letter-spacing:6px;color:#fff;margin-bottom:4px}
+.coupon-code{font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:900;letter-spacing:6px;color:#fff;margin-bottom:4px;position:relative;cursor:pointer;user-select:all;-webkit-user-select:all;transition:transform .15s ease,color .2s ease,text-shadow .2s ease;outline:none}
+.coupon-code:hover{color:#F5A623;text-shadow:0 0 18px rgba(245,166,35,.45);transform:scale(1.02)}
+.coupon-code:active{transform:scale(.98)}
+.coupon-code::before{content:"📋";position:absolute;top:50%;right:-30px;transform:translateY(-50%);font-size:16px;opacity:.5;transition:opacity .2s ease,transform .2s ease}
+.coupon-code:hover::before{opacity:1;transform:translateY(-50%) scale(1.15)}
+.coupon-code.copied{color:#4ADE80!important;text-shadow:0 0 22px rgba(74,222,128,.55)!important}
+.coupon-code.copied::before{content:"✓";color:#4ADE80;opacity:1;font-weight:900}
+.coupon-toast{position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%) translateY(4px);background:#4ADE80;color:#062013;font:900 11px/1 'Barlow Condensed',sans-serif;letter-spacing:1.5px;padding:7px 12px;border-radius:6px;white-space:nowrap;text-transform:uppercase;box-shadow:0 6px 18px rgba(74,222,128,.4);opacity:0;transition:opacity .25s ease,transform .25s ease;pointer-events:none}
+.coupon-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.coupon-toast::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#4ADE80}
 .coupon-desc{color:rgba(255,255,255,.5);font-size:12px}
 .win-cta{background:#E8322A;color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:900;letter-spacing:2px;padding:14px 44px;border-radius:6px;border:none;cursor:pointer;text-transform:uppercase;text-decoration:none;display:inline-block;box-shadow:0 4px 24px rgba(232,50,42,.4);transition:all .2s;margin-bottom:10px}
 .win-cta:hover{background:#c82a24;transform:scale(1.03)}
@@ -1311,6 +1320,60 @@ document.getElementById('startBtn').addEventListener('click', startGame);
 document.getElementById('winRetry').addEventListener('click', startGame);
 document.getElementById('loseRetry').addEventListener('click', startGame);
 document.getElementById('consolationRetry').addEventListener('click', startGame);
+
+// ── KUPON KODU KOPYALAMA ──────────────────────────────────
+function copyCouponCode(el){
+  const text = (el.textContent || '').trim();
+  if(!text) return;
+
+  const showToast = () => {
+    el.classList.add('copied');
+    let toast = el.querySelector('.coupon-toast');
+    if(!toast){
+      toast = document.createElement('span');
+      toast.className = 'coupon-toast';
+      toast.textContent = 'KOPYALANDI';
+      el.appendChild(toast);
+    }
+    requestAnimationFrame(() => toast.classList.add('show'));
+    clearTimeout(el._copyTimer);
+    el._copyTimer = setTimeout(() => {
+      toast.classList.remove('show');
+      el.classList.remove('copied');
+    }, 1800);
+  };
+
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-1000px;left:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); showToast(); }
+    catch(e){ console.warn('Kupon kopyalanamadi', e); }
+    document.body.removeChild(ta);
+  };
+
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(text).then(showToast).catch(fallback);
+  } else {
+    fallback();
+  }
+}
+
+document.querySelectorAll('.coupon-code').forEach(el => {
+  el.setAttribute('role', 'button');
+  el.setAttribute('tabindex', '0');
+  el.setAttribute('title', 'Tikla & kopyala');
+  el.setAttribute('aria-label', 'Kupon kodu — tikla ve kopyala');
+  el.addEventListener('click', () => copyCouponCode(el));
+  el.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' || e.key === ' '){
+      e.preventDefault();
+      copyCouponCode(el);
+    }
+  });
+});
 
 // ── RESIZE ─────────────────────────────────────────────────
 window.addEventListener('resize', () => {
