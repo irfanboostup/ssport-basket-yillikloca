@@ -318,26 +318,39 @@ const AD_BANNER_DATA_URI = "data:image/webp;base64,UklGRtQDAQBXRUJQVlA4IMgDAQBQF
 // Track all cloned ad textures so we can mark them needsUpdate after image loads
 const adTexClones = [];
 
+// Banner aspect (canvas genislik / yukseklik). Panel repeat formulu buna gore.
+const BANNER_ASPECT = 9.2;
+
 function makeAdTexture(){
   const c = document.createElement('canvas');
-  // Match banner aspect ratio (~2.6:1) so it doesn't distort.
-  c.width = 1300; c.height = 500;
+  // Koyu lacivert arka plan + beyaz "SPORUN EV SAHIBI S SPORT PLUS" yazisi
+  // Aspect 9.2:1 (1840 x 200) — kullanicinin verdigi banner PNG ile eslesir
+  c.width = 1840; c.height = 200;
   const ctx = c.getContext('2d');
 
-  // BEYAZ banner arka planı — logo (kırmızı/mavi/gri) belirgin görünür
-  function fillBg(){
-    const grad = ctx.createLinearGradient(0, 0, 0, 500);
-    grad.addColorStop(0, '#ffffff');
-    grad.addColorStop(1, '#eef2f8');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 1300, 500);
-    // Banner kenar çizgileri (hafif gri/mavi vurgu)
-    ctx.fillStyle = 'rgba(31,58,138,.25)';
-    ctx.fillRect(0, 0, 1300, 4);
-    ctx.fillStyle = 'rgba(0,0,0,.18)';
-    ctx.fillRect(0, 496, 1300, 4);
+  function render(){
+    // Duz koyu lacivert arka plan
+    ctx.fillStyle = '#0E2B5C';
+    ctx.fillRect(0, 0, c.width, c.height);
+
+    // Beyaz yazi — Barlow Condensed Black, ortalanmis
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const text = 'SPORUN EV SAHİBİ S SPORT PLUS';
+    let fontSize = 140;
+    const fontFamily = '"Barlow Condensed","Oswald","Arial Black",sans-serif';
+    ctx.font = '900 ' + fontSize + 'px ' + fontFamily;
+
+    // Yazi taşıyorsa font'u otomatik kucult
+    const maxW = c.width - 80;
+    while(ctx.measureText(text).width > maxW && fontSize > 60){
+      fontSize -= 4;
+      ctx.font = '900 ' + fontSize + 'px ' + fontFamily;
+    }
+    ctx.fillText(text, c.width/2, c.height/2);
   }
-  fillBg();
+  render();
 
   const tex = new THREE.CanvasTexture(c);
   tex.anisotropy = 8;
@@ -345,17 +358,14 @@ function makeAdTexture(){
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.ClampToEdgeWrapping;
 
-  // Banner üzerinde tekrar eden logolar (1300 genişlik için 3 adet)
-  function renderBanner(){
-    fillBg();
-    const d = 360;
-    const xs = [220, 650, 1080];
-    xs.forEach(x => drawUserLogoCircular(ctx, x, 250, d));
-    tex.needsUpdate = true;
-    adTexClones.forEach(t => { t.needsUpdate = true; });
+  // Barlow Condensed font'u sonradan yuklenince banner'i yeniden cizip texture'i guncelle
+  if(document.fonts && document.fonts.ready){
+    document.fonts.ready.then(function(){
+      render();
+      tex.needsUpdate = true;
+      adTexClones.forEach(function(t){ t.needsUpdate = true; });
+    });
   }
-  if(userLogoState.ready) renderBanner();
-  else userLogoState.listeners.push(renderBanner);
 
   return tex;
 }
@@ -478,9 +488,9 @@ function makeAdPanel(width, height = AD_HEIGHT){
     emissiveIntensity: 0.18,
     emissiveMap: clonedTex
   });
-  // Banner is 2.6:1, panel height is AD_HEIGHT. Repeat count that keeps
-  // each banner copy un-distorted: width / (height * 2.6).
-  const repeats = Math.max(1, Math.round(width / (height * 2.6)));
+  // Banner aspect is BANNER_ASPECT:1, panel height is AD_HEIGHT.
+  // Tekrar sayisi distortion'i onler: ceil(width / (height * aspect))
+  const repeats = Math.max(1, Math.ceil(width / (height * BANNER_ASPECT)));
   clonedTex.repeat.set(repeats, 1);
 
   const panel = new THREE.Mesh(
