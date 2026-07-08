@@ -338,6 +338,13 @@ function makeAdTexture(){
   c.width = 1840; c.height = 200;
   const ctx = c.getContext('2d');
 
+  // FIX: tex ONCE tanimlanmali — render() icinde referans veriyor.
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = 8;
+  tex.encoding = THREE.sRGBEncoding;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+
   function render(){
     ctx.fillStyle = bannerBgColor;
     ctx.fillRect(0, 0, c.width, c.height);
@@ -358,12 +365,6 @@ function makeAdTexture(){
     adTexClones.forEach(function(t){ t.needsUpdate = true; });
   }
   render();
-
-  const tex = new THREE.CanvasTexture(c);
-  tex.anisotropy = 8;
-  tex.encoding = THREE.sRGBEncoding;
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.ClampToEdgeWrapping;
 
   adTextureRenderers.push(render);
 
