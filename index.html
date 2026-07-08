@@ -321,34 +321,41 @@ const adTexClones = [];
 // Banner aspect (canvas genislik / yukseklik). Panel repeat formulu buna gore.
 const BANNER_ASPECT = 9.2;
 
+// Banner metni — Insider config override edebilsin diye dis kapsama alindi
+let bannerText = 'SPORUN EV SAHİBİ S SPORT PLUS';
+let bannerBgColor = '#0E2B5C';
+let bannerFgColor = '#ffffff';
+
+// Ad texture render fonksiyonlarini disaridan tetiklemek icin toplaniyor
+const adTextureRenderers = [];
+
+function rerenderAllAdTextures(){
+  adTextureRenderers.forEach(function(fn){ fn(); });
+}
+
 function makeAdTexture(){
   const c = document.createElement('canvas');
-  // Koyu lacivert arka plan + beyaz "SPORUN EV SAHIBI S SPORT PLUS" yazisi
-  // Aspect 9.2:1 (1840 x 200) — kullanicinin verdigi banner PNG ile eslesir
   c.width = 1840; c.height = 200;
   const ctx = c.getContext('2d');
 
   function render(){
-    // Duz koyu lacivert arka plan
-    ctx.fillStyle = '#0E2B5C';
+    ctx.fillStyle = bannerBgColor;
     ctx.fillRect(0, 0, c.width, c.height);
-
-    // Beyaz yazi — Barlow Condensed Black, ortalanmis
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = bannerFgColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const text = 'SPORUN EV SAHİBİ S SPORT PLUS';
+    const text = String(bannerText || '');
     let fontSize = 140;
     const fontFamily = '"Barlow Condensed","Oswald","Arial Black",sans-serif';
     ctx.font = '900 ' + fontSize + 'px ' + fontFamily;
-
-    // Yazi taşıyorsa font'u otomatik kucult
     const maxW = c.width - 80;
-    while(ctx.measureText(text).width > maxW && fontSize > 60){
+    while(ctx.measureText(text).width > maxW && fontSize > 40){
       fontSize -= 4;
       ctx.font = '900 ' + fontSize + 'px ' + fontFamily;
     }
     ctx.fillText(text, c.width/2, c.height/2);
+    tex.needsUpdate = true;
+    adTexClones.forEach(function(t){ t.needsUpdate = true; });
   }
   render();
 
@@ -358,13 +365,10 @@ function makeAdTexture(){
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.ClampToEdgeWrapping;
 
-  // Barlow Condensed font'u sonradan yuklenince banner'i yeniden cizip texture'i guncelle
+  adTextureRenderers.push(render);
+
   if(document.fonts && document.fonts.ready){
-    document.fonts.ready.then(function(){
-      render();
-      tex.needsUpdate = true;
-      adTexClones.forEach(function(t){ t.needsUpdate = true; });
-    });
+    document.fonts.ready.then(function(){ render(); });
   }
 
   return tex;
@@ -1274,7 +1278,9 @@ function showMsg(text, color){
 
 // ── WIN / LOSE ─────────────────────────────────────────────
 function showWin(){
-  document.getElementById('winSubText').textContent = `5'ten ${made} basket yaptın! 🎉`;
+  const tpl = (window.INSIDER_CONFIG && window.INSIDER_CONFIG.winSubTemplate)
+    || `5'ten {score} basket yaptın! 🎉`;
+  document.getElementById('winSubText').textContent = tpl.replace('{score}', made);
   document.getElementById('winScreen').style.display = 'flex';
   spawnConfetti();
 }
@@ -1283,13 +1289,20 @@ function showLose(){
   document.getElementById('loseScreen').style.display = 'flex';
 }
 function showConsolation(){
-  const msgs = [
+  const defaultMsgs = [
     'Bu sefer olmadı ama YILLIKLOCA kodu seni bekliyor.',
     'Yaklaştın! YILLIKLOCA kodunla indirimli üye olabilirsin.',
     'Az kaldı! YILLIKLOCA kodunla yıllık pakette indirim sende.'
   ];
+  // Insider config override edebilir
+  const msgs = (window.INSIDER_CONFIG && Array.isArray(window.INSIDER_CONFIG.consolationMessages))
+    ? window.INSIDER_CONFIG.consolationMessages
+    : defaultMsgs;
+  const tpl = (window.INSIDER_CONFIG && window.INSIDER_CONFIG.consolationSubTemplate)
+    || '{score}/5 basket attın. {msg}';
   const idx = Math.max(0, Math.min(made, msgs.length-1));
-  document.getElementById('consolationSubText').textContent = made + '/5 basket attın. ' + msgs[idx];
+  const text = tpl.replace('{score}', made).replace('{msg}', msgs[idx] || '');
+  document.getElementById('consolationSubText').textContent = text;
   document.getElementById('consolationScreen').style.display = 'flex';
 }
 function spawnConfetti(){
@@ -1384,6 +1397,96 @@ document.querySelectorAll('.coupon-code').forEach(el => {
     }
   });
 });
+
+// ── INSIDER CONFIG BRIDGE ─────────────────────────────────
+// Parent (Insider Edit JS) postMessage ile config gonderir; DOM'daki
+// metinleri override ederiz. Boylece GitHub'a dokunmadan Insider panelden
+// icerik guncellenebilir.
+window.INSIDER_CONFIG = window.INSIDER_CONFIG || {};
+
+const SSPORT_TEXT_MAP = {
+  // WIN
+  winTitle:               { sel: '#winScreen .win-title' },
+  winSubText:             { sel: '#winSubText' },
+  winDesc:                { sel: '#winScreen .win-desc',    html: true },
+  winCouponLabel:         { sel: '#winScreen .coupon-label' },
+  winCouponCode:          { sel: '#winScreen .coupon-code' },
+  winCouponDesc:          { sel: '#winScreen .coupon-desc' },
+  winCtaText:             { sel: '#winScreen .win-cta' },
+  winRetryText:           { sel: '#winRetry' },
+  // LOSE (kod icinde duruyor)
+  loseTitle:              { sel: '#loseScreen .lose-title' },
+  loseSubHtml:            { sel: '#loseScreen .lose-sub', html: true },
+  loseRetryText:          { sel: '#loseRetry' },
+  // CONSOLATION (0-2 basket)
+  consolationTitle:       { sel: '#consolationScreen .consolation-title' },
+  consolationCouponLabel: { sel: '#consolationScreen .coupon-label' },
+  consolationCouponCode:  { sel: '#consolationScreen .coupon-code' },
+  consolationCouponDesc:  { sel: '#consolationScreen .coupon-desc' },
+  consolationDiscountNote:{ sel: '#consolationScreen .discount-note' },
+  consolationCtaText:     { sel: '#consolationScreen .win-cta' },
+  consolationRetryText:   { sel: '#consolationRetry' },
+  // HUD / genel
+  hintText:               { sel: '#hint' },
+};
+
+function applyInsiderConfig(cfg){
+  if(!cfg || typeof cfg !== 'object') return;
+  // Referansı sakla — showWin/showConsolation da okuyabilsin
+  window.INSIDER_CONFIG = Object.assign(window.INSIDER_CONFIG || {}, cfg);
+
+  // 1) Basit metin override'lari
+  Object.keys(SSPORT_TEXT_MAP).forEach(function(key){
+    if(cfg[key] == null) return;
+    const m = SSPORT_TEXT_MAP[key];
+    const el = document.querySelector(m.sel);
+    if(!el) return;
+    if(m.html) el.innerHTML = String(cfg[key]);
+    else el.textContent = String(cfg[key]);
+  });
+
+  // 2) Banner metni (canvas re-render)
+  if(cfg.bannerText != null){ bannerText = String(cfg.bannerText); }
+  if(cfg.bannerBg   != null){ bannerBgColor = String(cfg.bannerBg); }
+  if(cfg.bannerFg   != null){ bannerFgColor = String(cfg.bannerFg); }
+  if(cfg.bannerText != null || cfg.bannerBg != null || cfg.bannerFg != null){
+    rerenderAllAdTextures();
+  }
+
+  // 3) CTA linki
+  if(cfg.ctaUrl){
+    document.querySelectorAll('.win-cta, .cta-link').forEach(function(a){
+      const url = String(cfg.ctaUrl);
+      a.setAttribute('href', '#');
+      a.onclick = function(){
+        (typeof mraid !== 'undefined' ? mraid.open : window.open)(url);
+        return false;
+      };
+    });
+  }
+
+  // 4) Skor label sonek (ornegin "/ 5" → "/ 10")
+  if(cfg.shotCountTotal){
+    const label = document.getElementById('scoreLabel');
+    if(label) label.textContent = (typeof made !== 'undefined' ? made : 0) + ' / ' + cfg.shotCountTotal;
+  }
+}
+
+// Parent'tan mesaj dinle
+window.addEventListener('message', function(e){
+  const data = e.data;
+  if(!data || typeof data !== 'object') return;
+  if(data.type === 'SSPORT_CONFIG' && data.config){
+    applyInsiderConfig(data.config);
+  }
+});
+
+// Iframe icindeyiz — parent'a "hazir" sinyali gonder, config gonderilebilsin
+try {
+  if(window.parent && window.parent !== window){
+    window.parent.postMessage({ type: 'SSPORT_READY' }, '*');
+  }
+} catch(_) {}
 
 // ── RESIZE ─────────────────────────────────────────────────
 window.addEventListener('resize', () => {
