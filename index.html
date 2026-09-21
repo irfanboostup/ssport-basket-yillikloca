@@ -232,10 +232,18 @@ function makeUserLogoImgHTML(){
   // Yeni S SPORT+ logosu zaten saydam arka planlı PNG — kırpma/yuvarlama yok, doğal şekliyle gösterilir.
   return '<img src="' + src + '" alt="S Sport+ Logo" style="width:100%;height:100%;object-fit:contain;display:block">';
 }
+// HUD logosu (ekranin ustu) — Insider image library'deki S SPORT+ logosu.
+// SADECE hudLogo bunu kullanir; diger tum logolar (intro/win/lose/consolation,
+// pota cami, parke ortasi, bayrak, reklam panolari) USER_LOGO_B64 ile ayni kalir.
+const HUD_LOGO_URL = "https://web-image.useinsider.com/ssportplus/defaultImageLibrary/s-sport-disi-logo-1789999524.png";
+function makeHudLogoImgHTML(){
+  return '<img src="' + HUD_LOGO_URL + '" alt="S Sport+ Logo" style="width:100%;height:100%;object-fit:contain;display:block">';
+}
 function refreshHtmlLogos(){
   ['introLogo','hudLogo','winLogo','loseLogo','consolationLogo'].forEach(id => {
     const el = document.getElementById(id);
-    if(el) el.innerHTML = makeUserLogoImgHTML();
+    if(!el) return;
+    el.innerHTML = (id === 'hudLogo') ? makeHudLogoImgHTML() : makeUserLogoImgHTML();
   });
 }
 userLogoImg.onload = () => {
