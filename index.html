@@ -570,14 +570,14 @@ function makeSSportPlusFlagTex(){
   const ctx = c.getContext('2d');
   let t;
   function render(){
-    // BEYAZ bayrak arka planı — logo (kırmızı/mavi/gri) net görünür
+    // LACIVERT bayrak arka planı (S SPORT+ laciverti) — beyaz logo net görünür
     const g = ctx.createLinearGradient(0, 0, 0, 160);
-    g.addColorStop(0, '#ffffff');
-    g.addColorStop(1, '#eef2f8');
+    g.addColorStop(0, '#0E2B5C');
+    g.addColorStop(1, '#0A2047');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 256, 160);
-    // Hafif kenar vurgu
-    ctx.strokeStyle = 'rgba(31,58,138,.20)';
+    // Hafif kenar vurgu — lacivert zeminde görünmesi için açık ton
+    ctx.strokeStyle = 'rgba(255,255,255,.25)';
     ctx.lineWidth = 2;
     ctx.strokeRect(1, 1, 254, 158);
     // Logo
@@ -776,7 +776,8 @@ hoop.add(arm);
 
 // Backboard
 const backboardMat = new THREE.MeshPhysicalMaterial({
-  color: 0xffffff, roughness: 0.15, metalness: 0.0,
+  // S SPORT+ laciverti — beyaz logo cam uzerinde net gorunsun
+  color: 0x0E2B5C, roughness: 0.15, metalness: 0.0,
   transmission: 0.4, transparent: true, opacity: 0.55,
   clearcoat: 1.0, clearcoatRoughness: 0.1
 });
