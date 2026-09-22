@@ -226,34 +226,38 @@ const USER_LOGO_B64 = "iVBORw0KGgoAAAANSUhEUgAAAuYAAALyCAYAAACW3hHeAAFh/UlEQVR42
 const userLogoImg = new Image();
 let USER_LOGO_CROPPED_URL = ''; // dolu olduğunda HTML img'lere set edilir
 const userLogoState = { ready: false, listeners: [] };
-// HTML logo containerlarına img enjekte eden yardımcı (cropped varsa kullan, yoksa orijinal fallback)
+// Tum S SPORT+ logolari icin ortak kaynak — Insider image library.
+// HTML logolari (intro/hud/win/lose/consolation) ve canvas/3D logolari
+// (pota cami, parke ortasi, bayrak, reklam panolari) hepsi bunu kullanir.
+// URL yuklenemezse gomulu USER_LOGO_B64 yedegine dusulur (bkz. onerror).
+const SSPORT_LOGO_URL = "https://web-image.useinsider.com/ssportplus/defaultImageLibrary/s-sport-disi-logo-1789999524.png";
+// HTML logo containerlarına img enjekte eden yardımcı
 function makeUserLogoImgHTML(){
-  const src = USER_LOGO_CROPPED_URL || ('data:image/png;base64,' + USER_LOGO_B64);
-  // Yeni S SPORT+ logosu zaten saydam arka planlı PNG — kırpma/yuvarlama yok, doğal şekliyle gösterilir.
+  const src = USER_LOGO_CROPPED_URL || SSPORT_LOGO_URL;
   return '<img src="' + src + '" alt="S Sport+ Logo" style="width:100%;height:100%;object-fit:contain;display:block">';
-}
-// HUD logosu (ekranin ustu) — Insider image library'deki S SPORT+ logosu.
-// SADECE hudLogo bunu kullanir; diger tum logolar (intro/win/lose/consolation,
-// pota cami, parke ortasi, bayrak, reklam panolari) USER_LOGO_B64 ile ayni kalir.
-const HUD_LOGO_URL = "https://web-image.useinsider.com/ssportplus/defaultImageLibrary/s-sport-disi-logo-1789999524.png";
-function makeHudLogoImgHTML(){
-  return '<img src="' + HUD_LOGO_URL + '" alt="S Sport+ Logo" style="width:100%;height:100%;object-fit:contain;display:block">';
 }
 function refreshHtmlLogos(){
   ['introLogo','hudLogo','winLogo','loseLogo','consolationLogo'].forEach(id => {
     const el = document.getElementById(id);
-    if(!el) return;
-    el.innerHTML = (id === 'hudLogo') ? makeHudLogoImgHTML() : makeUserLogoImgHTML();
+    if(el) el.innerHTML = makeUserLogoImgHTML();
   });
 }
 userLogoImg.onload = () => {
-  // Yeni S SPORT+ logosu zaten saydam — kırpmaya gerek yok, orijinal data URI doğrudan kullanılır.
-  USER_LOGO_CROPPED_URL = 'data:image/png;base64,' + USER_LOGO_B64;
+  USER_LOGO_CROPPED_URL = userLogoImg.src;
   try { refreshHtmlLogos(); } catch(e){}
   userLogoState.ready = true;
   userLogoState.listeners.forEach(fn => { try{ fn(); }catch(e){} });
 };
-userLogoImg.src = 'data:image/png;base64,' + USER_LOGO_B64;
+userLogoImg.onerror = () => {
+  // URL'e ulasilamadi (orn. agsiz playable ortami) — gomulu logoya geri don
+  if(userLogoImg.src.slice(0,5) === 'data:') return;
+  userLogoImg.removeAttribute('crossorigin');
+  userLogoImg.src = 'data:image/png;base64,' + USER_LOGO_B64;
+};
+// CORS sart: bu gorsel canvas'a cizilip WebGL texture'a gidiyor. crossOrigin
+// olmadan canvas "tainted" olur, THREE.CanvasTexture yuklemesi SecurityError atar.
+userLogoImg.crossOrigin = 'anonymous';
+userLogoImg.src = SSPORT_LOGO_URL;
 
 // PNG içindeki sadece DAİRE bölgesini kullan — saydam köşeler hariç tutulur.
 // PNG 333x293, daire bbox: (30,13) → (290,274), boyut 261x261.
